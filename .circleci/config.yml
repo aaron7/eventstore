@@ -7,4 +7,6 @@ jobs:
     steps:
       - checkout
       - run: make dep
-      - run: make
+      - run: make test
+      - run: make build
+      - run: make integration-tests

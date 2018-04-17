@@ -10,6 +10,9 @@ build:
 test:
 	go test -v ./...
 
+integration-tests: build
+	./integration-tests/basic.sh
+
 clean:
 	go clean
 	rm -f $(BINARY)
