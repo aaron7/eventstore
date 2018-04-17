@@ -1,6 +1,9 @@
 # Default db path
 .db
 
+# Dep
+vendor
+
 ### Go ###
 # Binaries for programs and plugins
 *.exe
