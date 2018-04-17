@@ -26,7 +26,6 @@ func newBadgerDB(dir string) *BadgerDB {
 
 // LookupValue implements DB
 func (b *BadgerDB) LookupValue(key []byte) (value []byte, exists bool, err error) {
-	// fmt.Printf("LookupValue %+v", key)
 	err = b.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {

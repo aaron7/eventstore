@@ -6,6 +6,8 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/aaron7/eventstore/pkg/db"
 	"github.com/aaron7/eventstore/pkg/store"
 )
@@ -31,7 +33,9 @@ func main() {
 	api := &store.API{
 		Store: s,
 	}
+
 	http.Handle("/", api)
+	http.Handle("/metrics", promhttp.Handler())
 
 	fmt.Printf("Listening on %s\n", *listen)
 	http.ListenAndServe(*listen, nil)

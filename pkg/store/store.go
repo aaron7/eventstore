@@ -1,8 +1,20 @@
 package store
 
 import (
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/aaron7/eventstore/pkg/db"
 )
+
+var eventsCounter = prometheus.NewCounter(prometheus.CounterOpts{
+	Namespace: "eventstore",
+	Name:      "ingest_events_total",
+	Help:      "The total number of events written.",
+})
+
+func init() {
+	prometheus.MustRegister(eventsCounter)
+}
 
 // Store stores events
 type Store struct {
@@ -44,6 +56,7 @@ func (s *Store) IngestEvents(events []Event) error {
 		}
 		indexEntries = append(indexEntries, e)
 	}
+	eventsCounter.Add(float64(len(events)))
 
 	return s.DB.SetKeyValues(indexEntries)
 }
