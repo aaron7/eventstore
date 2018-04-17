@@ -1,8 +1,6 @@
-# Default db path
-.db
-
-# Dep
-vendor
+/.db
+/build
+/vendor
 
 ### Go ###
 # Binaries for programs and plugins
