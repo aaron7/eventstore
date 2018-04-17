@@ -17,5 +17,6 @@ clean:
 run: build
 	./$(BINARY)
 
-deps:
+dep:
+	go get -u github.com/golang/dep/cmd/dep
 	dep ensure
