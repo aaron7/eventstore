@@ -141,6 +141,18 @@ func (s *Store) QueryEvents(query Query) QueryResult {
 				count := len(eventIDs)
 				meta["count"] = count
 			}
+			if operation.Type == "uniqueCount" {
+				var uniqueCount uint64
+				uniqueMap := make(map[string]struct{})
+				for _, eventID := range eventIDs {
+					v := fetchedKeyValues[eventID][operation.Key]
+					if _, ok := uniqueMap[v]; !ok {
+						uniqueCount++
+						uniqueMap[v] = struct{}{}
+					}
+				}
+				meta["uniqueCount"] = uniqueCount
+			}
 		}
 
 		// Create the result

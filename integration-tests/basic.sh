@@ -191,5 +191,35 @@ if [[ "$match_one" != "$expected" ]]; then
   exit 1
 fi
 
+# Test unique count
+match_all=$(curl -s -X POST \
+  http://localhost:8000/query \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "data": [
+    {
+      "name": "test",
+      "keys": ["dim1", "dim2", "dim3"],
+      "filters":[
+        {
+          "type": "eq",
+          "key": "dim1",
+          "value": "foo"
+        }
+      ],
+      "operations": [{
+        "type": "uniqueCount",
+        "key": "dim1"
+      }],
+      "hideData": true
+    }
+  ]
+}')
+expected='{"data":[{"name":"test","result":[],"meta":{"uniqueCount":1}}]}'
+if [[ "$match_all" != "$expected" ]]; then
+  echo "Error querying match_all. Got: ${match_all}, expected: ${expected}"
+  exit 1
+fi
+
 echo "Tests pass."
 exit 0
