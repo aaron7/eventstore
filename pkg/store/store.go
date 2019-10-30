@@ -71,8 +71,9 @@ type QueryResult struct {
 
 // QueryResultData ...
 type QueryResultData struct {
-	Name   string `json:"name"`
-	Result []M    `json:"result"`
+	Name   string                 `json:"name"`
+	Result []M                    `json:"result"`
+	Meta   map[string]interface{} `json:"meta"`
 }
 
 // QueryEvents takes a query and returns events
@@ -133,18 +134,30 @@ func (s *Store) QueryEvents(query Query) QueryResult {
 			}
 		}
 
-		// Create result
-		dataResult := []M{}
-		for _, eventID := range eventIDs {
-			point := M{"id": eventID}
-			for k := range fetchedKeysMap {
-				if v, ok := fetchedKeyValues[eventID][k]; ok {
-					point[k] = v
-				}
+		// Apply operations
+		meta := make(map[string]interface{})
+		for _, operation := range data.Operations {
+			if operation.Type == "count" {
+				count := len(eventIDs)
+				meta["count"] = count
 			}
-			dataResult = append(dataResult, point)
 		}
-		result = append(result, QueryResultData{Name: data.Name, Result: dataResult})
+
+		// Create the result
+		dataResult := []M{}
+		if !data.HideData {
+			for _, eventID := range eventIDs {
+				point := M{"id": eventID}
+				for k := range fetchedKeysMap {
+					if v, ok := fetchedKeyValues[eventID][k]; ok {
+						point[k] = v
+					}
+				}
+				dataResult = append(dataResult, point)
+			}
+		}
+
+		result = append(result, QueryResultData{Name: data.Name, Result: dataResult, Meta: meta})
 	}
 
 	return QueryResult{Data: result}

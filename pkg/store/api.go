@@ -104,6 +104,7 @@ type Data struct {
 	Keys       []string    `json:"keys"`
 	Filters    []Filter    `json:"filters"`
 	Operations []Operation `json:"operations"`
+	HideData   bool        `json:"hideData"`
 }
 
 // Filter is a filter on a dimension
