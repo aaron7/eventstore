@@ -95,15 +95,28 @@ func (a *API) handlePostEvents(w http.ResponseWriter, r *http.Request) {
 
 // Query is a query to the store
 type Query struct {
-	Dimensions []string `json:"dimensions"`
-	Filters    []Filter `json:"filters"`
+	Data []Data `json:"data"`
+}
+
+// Data is ...
+type Data struct {
+	Name       string      `json:"name"`
+	Keys       []string    `json:"keys"`
+	Filters    []Filter    `json:"filters"`
+	Operations []Operation `json:"operations"`
 }
 
 // Filter is a filter on a dimension
 type Filter struct {
-	Type      string `json:"type"` // Equal | Regex
-	Dimension string `json:"dimension"`
-	Value     string `json:"value"`
+	Type  string `json:"type"`  // eq | regex
+	Key   string `json:"key"`   // e.g. event_tag
+	Value string `json:"value"` // e.g. product_view
+}
+
+// Operation operates on data
+type Operation struct {
+	Type string `json:"type"` // count | unique | group_by
+	Key  string `json:"key"`  // e.g. user_id
 }
 
 func (a *API) handleQuery(w http.ResponseWriter, r *http.Request) {

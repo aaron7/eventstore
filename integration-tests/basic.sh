@@ -48,17 +48,26 @@ no_matches=$(curl -s -X POST \
   http://localhost:8000/query \
   -H 'Content-Type: application/json' \
   -d '{
-  "filters": [{
-    "type": "Equal",
-    "dimension": "dim1",
-    "value": "foo"
-  },{
-    "type": "Equal",
-    "dimension": "dim2",
-    "value": "foo"
-  }]
+  "data": [
+    {
+      "name": "test",
+      "keys": ["dim1", "dim2"],
+      "filters":[
+        {
+          "type": "eq",
+          "key": "dim1",
+          "value": "foo"
+        },{
+          "type": "eq",
+          "key": "dim2",
+          "value": "foo"
+        }
+      ],
+      "operations": []
+    }
+  ]
 }')
-expected="[]"
+expected='{"data":[{"name":"test","result":[]}]}'
 if [[ "$no_matches" != "$expected" ]]; then
   echo "Error querying no_matches. Got: ${no_matches}, expected: ${expected}"
   exit 1
@@ -68,13 +77,22 @@ match_all=$(curl -s -X POST \
   http://localhost:8000/query \
   -H 'Content-Type: application/json' \
   -d '{
-  "filters": [{
-    "type": "Equal",
-    "dimension": "dim1",
-    "value": "foo"
-  }]
+  "data": [
+    {
+      "name": "test",
+      "keys": ["dim1", "dim2"],
+      "filters":[
+        {
+          "type": "eq",
+          "key": "dim1",
+          "value": "foo"
+        }
+      ],
+      "operations": []
+    }
+  ]
 }')
-expected="[0,1]"
+expected='{"data":[{"name":"test","result":[{"dim1":"foo","dim2":"bar2","id":0},{"dim1":"foo","dim2":"bar2","id":1}]}]}'
 if [[ "$match_all" != "$expected" ]]; then
   echo "Error querying match_all. Got: ${match_all}, expected: ${expected}"
   exit 1
@@ -84,17 +102,27 @@ match_one=$(curl -s -X POST \
   http://localhost:8000/query \
   -H 'Content-Type: application/json' \
   -d '{
-  "filters": [{
-    "type": "Equal",
-    "dimension": "dim1",
-    "value": "foo"
-  }, {
-    "type": "Equal",
-    "dimension": "dim3",
-    "value": "oof"
-  }]
+  "data": [
+    {
+      "name": "test",
+      "keys": ["dim1", "dim2"],
+      "filters":[
+        {
+          "type": "eq",
+          "key": "dim1",
+          "value": "foo"
+        },
+        {
+          "type": "eq",
+          "key": "dim3",
+          "value": "oof"
+        }
+      ],
+      "operations": []
+    }
+  ]
 }')
-expected="[1]"
+expected='{"data":[{"name":"test","result":[{"dim1":"foo","dim2":"bar2","dim3":"oof","id":1}]}]}'
 if [[ "$match_one" != "$expected" ]]; then
   echo "Error querying match_one. Got: ${match_one}, expected: ${expected}"
   exit 1

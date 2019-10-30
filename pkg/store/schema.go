@@ -29,6 +29,10 @@ func getDimensionIndexRangeKey(dimension, value string) []byte {
 	return []byte(fmt.Sprintf("%s:%s:%s:", dimensionIndexPrefix, dimension, value))
 }
 
+func getPartialDimensionIndexRangeKey(dimension string) []byte {
+	return []byte(fmt.Sprintf("%s:%s:", dimensionIndexPrefix, dimension))
+}
+
 func createDimensionIndexEntry(dimension, value string, eventID uint64) db.KeyValuePair {
 	return db.KeyValuePair{
 		Key:   getDimensionIndexEntryKey(dimension, value, eventID),

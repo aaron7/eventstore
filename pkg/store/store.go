@@ -61,35 +61,91 @@ func (s *Store) IngestEvents(events []Event) error {
 	return s.DB.SetKeyValues(indexEntries)
 }
 
+// M ...
+type M map[string]interface{}
+
+// QueryResult contains data result
+type QueryResult struct {
+	Data []QueryResultData `json:"data"`
+}
+
+// QueryResultData ...
+type QueryResultData struct {
+	Name   string `json:"name"`
+	Result []M    `json:"result"`
+}
+
 // QueryEvents takes a query and returns events
-func (s *Store) QueryEvents(query Query) []uint64 {
-	eventIDs := []uint64{}
-	eventIDsMap := make(map[uint64]struct{})
+func (s *Store) QueryEvents(query Query) QueryResult {
+	result := []QueryResultData{}
 
-	for i, filter := range query.Filters {
-		currentFilterEventIDs := []uint64{}
-		keys := s.DB.RangeKeys(getDimensionIndexRangeKey(filter.Dimension, filter.Value))
-		for _, key := range keys {
-			_, _, eventID := decodeDimensionIndexKey(key)
+	for _, data := range query.Data {
+		eventIDs := []uint64{}
+		eventIDsMap := make(map[uint64]struct{})
 
+		fetchedKeysMap := make(map[string]struct{})
+		fetchedKeyValues := make(map[uint64]map[string]string)
+
+		for i, filter := range data.Filters {
+			currentFilterEventIDs := []uint64{}
+			keys := s.DB.RangeKeys(getDimensionIndexRangeKey(filter.Key, filter.Value))
+			for _, key := range keys {
+				_, _, eventID := decodeDimensionIndexKey(key)
+
+				// Save the value if we know it from the filter
+				if _, ok := fetchedKeyValues[eventID]; !ok {
+					fetchedKeyValues[eventID] = make(map[string]string)
+				}
+				fetchedKeyValues[eventID][filter.Key] = filter.Value
+
+				if i == 0 {
+					// Add first set of eventIDs directly to result
+					eventIDs = append(eventIDs, eventID)
+					eventIDsMap[eventID] = struct{}{}
+				} else {
+					// Otherwise create temporary list to use for intersect
+					currentFilterEventIDs = append(currentFilterEventIDs, eventID)
+				}
+			}
+
+			// If first filter, don't need to intersect
 			if i == 0 {
-				// Add first set of eventIDs directly to result
-				eventIDs = append(eventIDs, eventID)
-				eventIDsMap[eventID] = struct{}{}
+				continue
 			} else {
-				// Otherwise create temporary list to use for intersect
-				currentFilterEventIDs = append(currentFilterEventIDs, eventID)
+				eventIDs, eventIDsMap = intersect(currentFilterEventIDs, eventIDsMap)
+			}
+
+			// Record we fetched the key
+			fetchedKeysMap[filter.Key] = struct{}{}
+		}
+
+		// Get the remaining key values if they were not included in the filter
+		for _, dataKey := range data.Keys {
+			if _, ok := fetchedKeysMap[dataKey]; !ok {
+				// Not yet fetched this key, so fetch it and save the values
+				keys := s.DB.RangeKeys(getPartialDimensionIndexRangeKey(dataKey))
+				for _, key := range keys {
+					_, value, eventID := decodeDimensionIndexKey(key)
+					fetchedKeyValues[eventID][dataKey] = value
+				}
+				// Record we fetched the key
+				fetchedKeysMap[dataKey] = struct{}{}
 			}
 		}
 
-		if i == 0 {
-			continue
-		} else {
-			eventIDs, eventIDsMap = intersect(currentFilterEventIDs, eventIDsMap)
+		// Create result
+		dataResult := []M{}
+		for _, eventID := range eventIDs {
+			point := M{"id": eventID}
+			for k := range fetchedKeysMap {
+				point[k] = fetchedKeyValues[eventID][k]
+			}
+			dataResult = append(dataResult, point)
 		}
+		result = append(result, QueryResultData{Name: data.Name, Result: dataResult})
 	}
 
-	return eventIDs
+	return QueryResult{Data: result}
 }
 
 func intersect(smallerList []uint64, largerListMap map[uint64]struct{}) ([]uint64, map[uint64]struct{}) {
