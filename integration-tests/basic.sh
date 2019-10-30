@@ -80,7 +80,7 @@ match_all=$(curl -s -X POST \
   "data": [
     {
       "name": "test",
-      "keys": ["dim1", "dim2"],
+      "keys": ["dim1", "dim2", "dim3"],
       "filters":[
         {
           "type": "eq",
@@ -92,7 +92,7 @@ match_all=$(curl -s -X POST \
     }
   ]
 }')
-expected='{"data":[{"name":"test","result":[{"dim1":"foo","dim2":"bar2","id":0},{"dim1":"foo","dim2":"bar2","id":1}]}]}'
+expected='{"data":[{"name":"test","result":[{"dim1":"foo","dim2":"bar2","id":0},{"dim1":"foo","dim2":"bar2","dim3":"oof","id":1}]}]}'
 if [[ "$match_all" != "$expected" ]]; then
   echo "Error querying match_all. Got: ${match_all}, expected: ${expected}"
   exit 1

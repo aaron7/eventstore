@@ -138,7 +138,9 @@ func (s *Store) QueryEvents(query Query) QueryResult {
 		for _, eventID := range eventIDs {
 			point := M{"id": eventID}
 			for k := range fetchedKeysMap {
-				point[k] = fetchedKeyValues[eventID][k]
+				if v, ok := fetchedKeyValues[eventID][k]; ok {
+					point[k] = v
+				}
 			}
 			dataResult = append(dataResult, point)
 		}
