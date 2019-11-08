@@ -97,6 +97,11 @@ func (b *BadgerDB) Stream(prefix []byte, keyToList func(key []byte, itr *badger.
 	return nil
 }
 
+// DropAll implements DB
+func (b *BadgerDB) DropAll() error {
+	return b.db.DropAll()
+}
+
 // Close implements DB
 func (b *BadgerDB) Close() error {
 	return b.db.Close()

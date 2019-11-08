@@ -11,21 +11,21 @@ import (
 // (tag, dimension, value, event_id) => nil
 const eventIndexPrefix = "e"
 
-func createEventIndexEntry(tag, dimension, value string, eventID uint64) db.KeyValuePair {
+func createEventIndexEntry(tag, dimension, value string, eventID, ts uint64) db.KeyValuePair {
 	return db.KeyValuePair{
-		Key:   getEventIndexEntryKey(tag, dimension, value, eventID),
+		Key:   getEventIndexEntryKey(tag, dimension, value, eventID, ts),
 		Value: nil,
 	}
 }
 
-func getEventIndexEntryKey(tag, dimension, value string, eventID uint64) []byte {
-	return []byte(fmt.Sprintf("%s:%s:%s:%s:%s", eventIndexPrefix, tag, dimension, value, uint64ToBytes(eventID)))
+func getEventIndexEntryKey(tag, dimension, value string, eventID, ts uint64) []byte {
+	return []byte(fmt.Sprintf("%s:%s:%s:%s:%s:%s", eventIndexPrefix, tag, dimension, value, uint64ToBytes(eventID), uint64ToBytes(ts)))
 }
 
-func decodeEventIndexKey(key []byte) (tag, dimension, value string, eventID uint64) {
+func decodeEventIndexKey(key []byte) (tag, dimension, value string, eventID, ts uint64) {
 	s := string(key)
-	parts := strings.SplitN(s, ":", 5)
-	return parts[1], parts[2], parts[3], bytesToUint64([]byte(parts[4]))
+	parts := strings.SplitN(s, ":", 6)
+	return parts[1], parts[2], parts[3], bytesToUint64([]byte(parts[4])), bytesToUint64([]byte(parts[5]))
 }
 
 func getPartialEventIndexTagRangeKey(tag string) []byte {

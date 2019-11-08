@@ -48,7 +48,7 @@ func (s *Store) IngestEvents(events []Event) error {
 			return err
 		}
 		for dimension, value := range event.Data {
-			indexEntries = append(indexEntries, createEventIndexEntry(event.Tag, dimension, value, eventID))
+			indexEntries = append(indexEntries, createEventIndexEntry(event.Tag, dimension, value, eventID, event.TS))
 		}
 		if err != nil {
 			return err
@@ -76,9 +76,10 @@ type QueryResultData struct {
 
 // DecodedEvent ...
 type DecodedEvent struct {
-	EventID uint64             `json:"eventID"`
-	Tag     string             `json:"tag"`
-	Data    []DecodedEventData `json:"data"`
+	ID   uint64             `json:"id"`
+	TS   uint64             `json:"ts"`
+	Tag  string             `json:"tag"`
+	Data []DecodedEventData `json:"data"`
 }
 
 // DecodedEventData ...
@@ -103,19 +104,19 @@ func (s *Store) QueryEvents(query Query) QueryResult {
 			keyItr := func(key []byte) error {
 				// Benchmark: 0.33 seconds for 3.3m keys
 				// TODO: Find faster decoding
-				_, _, eventValue, eventID := decodeEventIndexKey(key)
+				_, _, eventValue, eventID, ts := decodeEventIndexKey(key)
 
 				if i == 0 {
 					// Benchmark: Using map is 0.6s longer. Ids is 0.3s quicker.
 					// TODO: Find fasting encoding than struct?
-					events = append(events, DecodedEvent{EventID: eventID, Tag: data.Tag, Data: []DecodedEventData{{filter.Key, eventValue}}})
+					events = append(events, DecodedEvent{ID: eventID, TS: ts, Tag: data.Tag, Data: []DecodedEventData{{filter.Key, eventValue}}})
 				} else {
 					// Intersect by searching the events list from previous combined filters and only
 					// adding the event from this filter if it is also in the previous combined filters.
 					idx := sort.Search(len(finalEvents), func(i int) bool {
-						return eventID <= finalEvents[i].EventID
+						return eventID <= finalEvents[i].ID
 					})
-					if idx < len(finalEvents) && finalEvents[idx].EventID == eventID {
+					if idx < len(finalEvents) && finalEvents[idx].ID == eventID {
 						finalEvents[idx].Data = append(finalEvents[idx].Data, DecodedEventData{filter.Key, eventValue})
 						events = append(events, finalEvents[idx])
 					}
@@ -142,14 +143,14 @@ func (s *Store) QueryEvents(query Query) QueryResult {
 				keyItr := func(key []byte) error {
 					// Benchmark: 0.33 seconds for 3.3m keys
 					// TODO: Find faster decoding
-					_, _, eventValue, eventID := decodeEventIndexKey(key)
+					_, _, eventValue, eventID, _ := decodeEventIndexKey(key)
 
 					// Intersect by searching the events list from previous combined filters and only
 					// adding the event from this filter if it is also in the previous combined filters.
 					idx := sort.Search(len(finalEvents), func(i int) bool {
-						return eventID <= finalEvents[i].EventID
+						return eventID <= finalEvents[i].ID
 					})
-					if idx < len(finalEvents) && finalEvents[idx].EventID == eventID {
+					if idx < len(finalEvents) && finalEvents[idx].ID == eventID {
 						finalEvents[idx].Data = append(finalEvents[idx].Data, DecodedEventData{dataKey, eventValue})
 					}
 					return nil

@@ -21,6 +21,7 @@ type DB interface {
 	GetSequence(key []byte, bandwidth uint64) (Sequence, error)
 	RangeKeys(prefix []byte, keyItr func([]byte) error) error
 	Stream(prefix []byte, keyToList func(key []byte, itr *badger.Iterator) (list *pb.KVList, err error), send func(list *pb.KVList) error) error
+	DropAll() error
 	Close() error
 }
 

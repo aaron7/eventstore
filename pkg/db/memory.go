@@ -71,3 +71,9 @@ func (m *MemoryDB) Close() error {
 func (m *MemoryDB) Stream(prefix []byte, keyToList func(key []byte, itr *badger.Iterator) (list *pb.KVList, err error), send func(list *pb.KVList) error) error {
 	return nil
 }
+
+// DropAll implements DB
+func (m *MemoryDB) DropAll() error {
+	m.db = sync.Map{}
+	return nil
+}

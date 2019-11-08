@@ -13,6 +13,7 @@ import (
 const (
 	APIPathEvents = "/events"
 	APIPathQuery  = "/query"
+	APIDebug      = "/debug"
 )
 
 var requestDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
@@ -29,6 +30,7 @@ func init() {
 // API serves the store API
 type API struct {
 	Store *Store
+	Debug bool
 }
 
 func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -48,6 +50,8 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		a.handlePostEvents(w, r)
 	case method == "POST" && path == APIPathQuery:
 		a.handleQuery(w, r)
+	case method == "POST" && path == APIDebug:
+		a.handleDebug(w, r)
 	default:
 		http.NotFound(w, r)
 	}
@@ -78,7 +82,7 @@ type Events struct {
 // Event is one sampled event
 type Event struct {
 	Tag        string            `json:"tag"`
-	TS         int               `json:"ts"`
+	TS         uint64            `json:"ts"`
 	Samplerate int               `json:"samplerate"`
 	Data       map[string]string `json:"data"`
 }
@@ -133,4 +137,18 @@ func (a *API) handleQuery(w http.ResponseWriter, r *http.Request) {
 	eventIDs := a.Store.QueryEvents(query)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(eventIDs)
+}
+
+func (a *API) handleDebug(w http.ResponseWriter, r *http.Request) {
+	if !a.Debug {
+		http.Error(w, "Debug mode is not enabled", 503)
+	}
+
+	if r.URL.Query().Get("wipe") != "" {
+		a.Store.DB.DropAll()
+		w.WriteHeader(200)
+		return
+	}
+
+	http.Error(w, "Invalid params", 400)
 }

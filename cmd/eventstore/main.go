@@ -16,6 +16,7 @@ func main() {
 	var (
 		listen = flag.String("listen", ":8000", "listen address")
 		dbPath = flag.String("db", "badger://.db", "db path e.g. badger://.db or memory://")
+		debug  = flag.Bool("debug", false, "Enable debug endpoints")
 	)
 	flag.Parse()
 
@@ -32,6 +33,7 @@ func main() {
 
 	api := &store.API{
 		Store: s,
+		Debug: *debug,
 	}
 
 	http.Handle("/", api)
