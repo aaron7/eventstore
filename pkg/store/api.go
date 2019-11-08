@@ -77,6 +77,7 @@ type Events struct {
 
 // Event is one sampled event
 type Event struct {
+	Tag        string            `json:"tag"`
 	TS         int               `json:"ts"`
 	Samplerate int               `json:"samplerate"`
 	Data       map[string]string `json:"data"`
@@ -101,6 +102,7 @@ type Query struct {
 // Data is ...
 type Data struct {
 	Name       string      `json:"name"`
+	Tag        string      `json:"tag"` // e.g. page_view
 	Keys       []string    `json:"keys"`
 	Filters    []Filter    `json:"filters"`
 	Operations []Operation `json:"operations"`
@@ -110,8 +112,8 @@ type Data struct {
 // Filter is a filter on a dimension
 type Filter struct {
 	Type  string `json:"type"`  // eq | regex
-	Key   string `json:"key"`   // e.g. event_tag
-	Value string `json:"value"` // e.g. product_view
+	Key   string `json:"key"`   // e.g. path
+	Value string `json:"value"` // e.g. /home
 }
 
 // Operation operates on data

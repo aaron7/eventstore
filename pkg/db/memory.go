@@ -3,6 +3,9 @@ package db
 import (
 	"sync"
 	"sync/atomic"
+
+	badger "github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/pb"
 )
 
 // MemoryDB implements DB
@@ -55,16 +58,16 @@ func (ms *memorySequence) Next() (uint64, error) {
 }
 
 // RangeKeys implements DB
-func (m *MemoryDB) RangeKeys(prefix []byte) [][]byte {
-	var keys [][]byte
-	m.db.Range(func(key, value interface{}) bool {
-		keys = append(keys, key.([]byte))
-		return true
-	})
-	return keys
+func (m *MemoryDB) RangeKeys(prefix []byte, keyItr func([]byte) error) error {
+	return nil
 }
 
 // Close implements DB
 func (m *MemoryDB) Close() error {
+	return nil
+}
+
+// Stream implements DB
+func (m *MemoryDB) Stream(prefix []byte, keyToList func(key []byte, itr *badger.Iterator) (list *pb.KVList, err error), send func(list *pb.KVList) error) error {
 	return nil
 }

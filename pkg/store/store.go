@@ -1,6 +1,9 @@
 package store
 
 import (
+	"fmt"
+	"sort"
+
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/aaron7/eventstore/pkg/db"
@@ -45,16 +48,11 @@ func (s *Store) IngestEvents(events []Event) error {
 			return err
 		}
 		for dimension, value := range event.Data {
-			indexEntries = append(indexEntries, createDimensionIndexEntry(dimension, value, eventID))
+			indexEntries = append(indexEntries, createEventIndexEntry(event.Tag, dimension, value, eventID))
 		}
-		e, err := createEventIndexEntry(eventID, EventMetaData{
-			TS:         event.TS,
-			Samplerate: event.Samplerate,
-		})
 		if err != nil {
 			return err
 		}
-		indexEntries = append(indexEntries, e)
 	}
 	eventsCounter.Add(float64(len(events)))
 
@@ -72,8 +70,21 @@ type QueryResult struct {
 // QueryResultData ...
 type QueryResultData struct {
 	Name   string                 `json:"name"`
-	Result []M                    `json:"result"`
+	Result []DecodedEvent         `json:"result"`
 	Meta   map[string]interface{} `json:"meta"`
+}
+
+// DecodedEvent ...
+type DecodedEvent struct {
+	EventID uint64             `json:"eventID"`
+	Tag     string             `json:"tag"`
+	Data    []DecodedEventData `json:"data"`
+}
+
+// DecodedEventData ...
+type DecodedEventData struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // QueryEvents takes a query and returns events
@@ -81,40 +92,44 @@ func (s *Store) QueryEvents(query Query) QueryResult {
 	result := []QueryResultData{}
 
 	for _, data := range query.Data {
-		eventIDs := []uint64{}
-		eventIDsMap := make(map[uint64]struct{})
+		// Final list of events
+		var finalEvents []DecodedEvent
 
+		// Store keys we have fetched (will be a small map)
 		fetchedKeysMap := make(map[string]struct{})
-		fetchedKeyValues := make(map[uint64]map[string]string)
 
 		for i, filter := range data.Filters {
-			currentFilterEventIDs := []uint64{}
-			keys := s.DB.RangeKeys(getDimensionIndexRangeKey(filter.Key, filter.Value))
-			for _, key := range keys {
-				_, _, eventID := decodeDimensionIndexKey(key)
-
-				// Save the value if we know it from the filter
-				if _, ok := fetchedKeyValues[eventID]; !ok {
-					fetchedKeyValues[eventID] = make(map[string]string)
-				}
-				fetchedKeyValues[eventID][filter.Key] = filter.Value
+			events := []DecodedEvent{}
+			keyItr := func(key []byte) error {
+				// Benchmark: 0.33 seconds for 3.3m keys
+				// TODO: Find faster decoding
+				_, _, eventValue, eventID := decodeEventIndexKey(key)
 
 				if i == 0 {
-					// Add first set of eventIDs directly to result
-					eventIDs = append(eventIDs, eventID)
-					eventIDsMap[eventID] = struct{}{}
+					// Benchmark: Using map is 0.6s longer. Ids is 0.3s quicker.
+					// TODO: Find fasting encoding than struct?
+					events = append(events, DecodedEvent{EventID: eventID, Tag: data.Tag, Data: []DecodedEventData{{filter.Key, eventValue}}})
 				} else {
-					// Otherwise create temporary list to use for intersect
-					currentFilterEventIDs = append(currentFilterEventIDs, eventID)
+					// Intersect by searching the events list from previous combined filters and only
+					// adding the event from this filter if it is also in the previous combined filters.
+					idx := sort.Search(len(finalEvents), func(i int) bool {
+						return eventID <= finalEvents[i].EventID
+					})
+					if idx < len(finalEvents) && finalEvents[idx].EventID == eventID {
+						finalEvents[idx].Data = append(finalEvents[idx].Data, DecodedEventData{filter.Key, eventValue})
+						events = append(events, finalEvents[idx])
+					}
 				}
+
+				return nil
+			}
+			err := s.DB.RangeKeys(getPartialEventIndexValueRangeKey(data.Tag, filter.Key, filter.Value), keyItr)
+			if err != nil {
+				fmt.Println("error")
+				break
 			}
 
-			// If first filter, don't need to intersect
-			if i == 0 {
-				continue
-			} else {
-				eventIDs, eventIDsMap = intersect(currentFilterEventIDs, eventIDsMap)
-			}
+			finalEvents = events
 
 			// Record we fetched the key
 			fetchedKeysMap[filter.Key] = struct{}{}
@@ -124,11 +139,23 @@ func (s *Store) QueryEvents(query Query) QueryResult {
 		for _, dataKey := range data.Keys {
 			if _, ok := fetchedKeysMap[dataKey]; !ok {
 				// Not yet fetched this key, so fetch it and save the values
-				keys := s.DB.RangeKeys(getPartialDimensionIndexRangeKey(dataKey))
-				for _, key := range keys {
-					_, value, eventID := decodeDimensionIndexKey(key)
-					fetchedKeyValues[eventID][dataKey] = value
+				keyItr := func(key []byte) error {
+					// Benchmark: 0.33 seconds for 3.3m keys
+					// TODO: Find faster decoding
+					_, _, eventValue, eventID := decodeEventIndexKey(key)
+
+					// Intersect by searching the events list from previous combined filters and only
+					// adding the event from this filter if it is also in the previous combined filters.
+					idx := sort.Search(len(finalEvents), func(i int) bool {
+						return eventID <= finalEvents[i].EventID
+					})
+					if idx < len(finalEvents) && finalEvents[idx].EventID == eventID {
+						finalEvents[idx].Data = append(finalEvents[idx].Data, DecodedEventData{dataKey, eventValue})
+					}
+					return nil
 				}
+				s.DB.RangeKeys(getPartialEventIndexDimensionRangeKey(data.Tag, dataKey), keyItr)
+
 				// Record we fetched the key
 				fetchedKeysMap[dataKey] = struct{}{}
 			}
@@ -138,38 +165,39 @@ func (s *Store) QueryEvents(query Query) QueryResult {
 		meta := make(map[string]interface{})
 		for _, operation := range data.Operations {
 			if operation.Type == "count" {
-				count := len(eventIDs)
+				count := len(finalEvents)
 				meta["count"] = count
 			}
 			if operation.Type == "uniqueCount" {
 				var uniqueCount uint64
 				uniqueMap := make(map[string]struct{})
-				for _, eventID := range eventIDs {
-					v := fetchedKeyValues[eventID][operation.Key]
-					if _, ok := uniqueMap[v]; !ok {
+
+				var keyIndex int
+				if len(finalEvents) > 0 {
+					for i, kv := range finalEvents[0].Data {
+						if kv.Key == operation.Key {
+							keyIndex = i
+							break
+						}
+					}
+				}
+
+				for _, event := range finalEvents {
+					if _, ok := uniqueMap[event.Data[keyIndex].Value]; !ok {
 						uniqueCount++
-						uniqueMap[v] = struct{}{}
+						uniqueMap[event.Data[keyIndex].Value] = struct{}{}
 					}
 				}
 				meta["uniqueCount"] = uniqueCount
 			}
 		}
 
-		// Create the result
-		dataResult := []M{}
-		if !data.HideData {
-			for _, eventID := range eventIDs {
-				point := M{"id": eventID}
-				for k := range fetchedKeysMap {
-					if v, ok := fetchedKeyValues[eventID][k]; ok {
-						point[k] = v
-					}
-				}
-				dataResult = append(dataResult, point)
-			}
+		// Hide the event data is HideData is true
+		if data.HideData {
+			finalEvents = []DecodedEvent{}
 		}
 
-		result = append(result, QueryResultData{Name: data.Name, Result: dataResult, Meta: meta})
+		result = append(result, QueryResultData{Name: data.Name, Result: finalEvents, Meta: meta})
 	}
 
 	return QueryResult{Data: result}

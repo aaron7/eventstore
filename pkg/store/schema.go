@@ -7,61 +7,64 @@ import (
 	"github.com/aaron7/eventstore/pkg/db"
 )
 
-// Dimension Index
-// (dimension, value, event_id) => nil
-// Used to lookup events based on dimension and value pair
-const dimensionIndexPrefix = "d"
+// Event index
+// (tag, dimension, value, event_id) => nil
+const eventIndexPrefix = "e"
 
-// TODO: Better encoding
-func getDimensionIndexEntryKey(dimension, value string, eventID uint64) []byte {
-	return []byte(fmt.Sprintf("%s:%s:%s:%s", dimensionIndexPrefix, dimension, value, uint64ToBytes(eventID)))
-}
-
-// TODO: Better encoding
-func decodeDimensionIndexKey(key []byte) (dimension, value string, eventID uint64) {
-	s := string(key)
-	parts := strings.SplitN(s, ":", 4)
-	return parts[1], parts[2], bytesToUint64([]byte(parts[3]))
-}
-
-// TODO: Better encoding
-func getDimensionIndexRangeKey(dimension, value string) []byte {
-	return []byte(fmt.Sprintf("%s:%s:%s:", dimensionIndexPrefix, dimension, value))
-}
-
-func getPartialDimensionIndexRangeKey(dimension string) []byte {
-	return []byte(fmt.Sprintf("%s:%s:", dimensionIndexPrefix, dimension))
-}
-
-func createDimensionIndexEntry(dimension, value string, eventID uint64) db.KeyValuePair {
+func createEventIndexEntry(tag, dimension, value string, eventID uint64) db.KeyValuePair {
 	return db.KeyValuePair{
-		Key:   getDimensionIndexEntryKey(dimension, value, eventID),
+		Key:   getEventIndexEntryKey(tag, dimension, value, eventID),
 		Value: nil,
 	}
 }
 
-// Event Index
-// (event_id) => { TS: time, SampleRate: uint64 }
-// Used to lookup complete events
-const eventIndexPrefix = "e"
-
-func getEventIndexEntryKey(eventID uint64) []byte {
-	return []byte(fmt.Sprintf("%s:%s", eventIndexPrefix, uint64ToBytes(eventID)))
+func getEventIndexEntryKey(tag, dimension, value string, eventID uint64) []byte {
+	return []byte(fmt.Sprintf("%s:%s:%s:%s:%s", eventIndexPrefix, tag, dimension, value, uint64ToBytes(eventID)))
 }
 
-// EventMetaData is stored in the event index
-type EventMetaData struct {
-	TS         int
-	Samplerate int
+func decodeEventIndexKey(key []byte) (tag, dimension, value string, eventID uint64) {
+	s := string(key)
+	parts := strings.SplitN(s, ":", 5)
+	return parts[1], parts[2], parts[3], bytesToUint64([]byte(parts[4]))
 }
 
-func createEventIndexEntry(eventID uint64, eventMetaData EventMetaData) (db.KeyValuePair, error) {
-	b, err := structToBytes(eventMetaData)
-	if err != nil {
-		return db.KeyValuePair{}, err
-	}
-	return db.KeyValuePair{
-		Key:   getEventIndexEntryKey(eventID),
-		Value: b,
-	}, nil
+func getPartialEventIndexTagRangeKey(tag string) []byte {
+	return []byte(fmt.Sprintf("%s:%s:", eventIndexPrefix, tag))
 }
+
+func getPartialEventIndexDimensionRangeKey(tag, dimension string) []byte {
+	return []byte(fmt.Sprintf("%s:%s:%s:", eventIndexPrefix, tag, dimension))
+}
+
+func getPartialEventIndexValueRangeKey(tag, dimension, value string) []byte {
+	return []byte(fmt.Sprintf("%s:%s:%s:%s:", eventIndexPrefix, tag, dimension, value))
+}
+
+// TODO: Use the below
+// func encodeKey(ss ...[]byte) []byte {
+// 	length := 0
+// 	for _, s := range ss {
+// 		length += len(s) + 1
+// 	}
+// 	output, i := make([]byte, length, length), 0
+// 	for _, s := range ss {
+// 		copy(output[i:i+len(s)], s)
+// 		i += len(s) + 1
+// 	}
+// 	return output
+// }
+
+// func decodeKey(value []byte) [][]byte {
+// 	components := make([][]byte, 0, 5)
+// 	i, j := 0, 0
+// 	for j < len(value) {
+// 		if value[j] != 0 {
+// 			j++
+// 			continue
+// 		}
+// 		components = append(components, value[i:j])
+// 		j++
+// 		i = j
+// 	}
+// 	return components
+// }

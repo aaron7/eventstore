@@ -21,6 +21,7 @@ response=$(curl -s -X POST \
   -H 'Content-Type: application/json' \
   -d '{
   "events": [{
+    "tag": "tag1",
     "ts": 1001,
     "samplerate": 1,
     "data": {
@@ -28,6 +29,7 @@ response=$(curl -s -X POST \
       "dim2": "bar2"
     }
   }, {
+    "tag": "tag1",
     "ts": 1002,
     "samplerate": 1,
     "data": {
@@ -51,6 +53,7 @@ no_matches=$(curl -s -X POST \
   "data": [
     {
       "name": "test",
+      "tag": "tag1",
       "keys": ["dim1", "dim2"],
       "filters":[
         {
@@ -80,6 +83,7 @@ match_all=$(curl -s -X POST \
   "data": [
     {
       "name": "test",
+      "tag": "tag1",
       "keys": ["dim1", "dim2", "dim3"],
       "filters":[
         {
@@ -92,7 +96,7 @@ match_all=$(curl -s -X POST \
     }
   ]
 }')
-expected='{"data":[{"name":"test","result":[{"dim1":"foo","dim2":"bar2","id":0},{"dim1":"foo","dim2":"bar2","dim3":"oof","id":1}],"meta":{}}]}'
+expected='{"data":[{"name":"test","result":[{"eventID":0,"tag":"tag1","data":[{"key":"dim1","value":"foo"},{"key":"dim2","value":"bar2"}]},{"eventID":1,"tag":"tag1","data":[{"key":"dim1","value":"foo"},{"key":"dim2","value":"bar2"},{"key":"dim3","value":"oof"}]}],"meta":{}}]}'
 if [[ "$match_all" != "$expected" ]]; then
   echo "Error querying match_all. Got: ${match_all}, expected: ${expected}"
   exit 1
@@ -105,6 +109,7 @@ match_one=$(curl -s -X POST \
   "data": [
     {
       "name": "test",
+      "tag": "tag1",
       "keys": ["dim1", "dim2"],
       "filters":[
         {
@@ -122,20 +127,21 @@ match_one=$(curl -s -X POST \
     }
   ]
 }')
-expected='{"data":[{"name":"test","result":[{"dim1":"foo","dim2":"bar2","dim3":"oof","id":1}],"meta":{}}]}'
+expected='{"data":[{"name":"test","result":[{"eventID":1,"tag":"tag1","data":[{"key":"dim1","value":"foo"},{"key":"dim3","value":"oof"},{"key":"dim2","value":"bar2"}]}],"meta":{}}]}'
 if [[ "$match_one" != "$expected" ]]; then
   echo "Error querying match_one. Got: ${match_one}, expected: ${expected}"
   exit 1
 fi
 
 # Test count operation = 2
-match_all=$(curl -s -X POST \
+match_2_count=$(curl -s -X POST \
   http://localhost:8000/query \
   -H 'Content-Type: application/json' \
   -d '{
   "data": [
     {
       "name": "test",
+      "tag": "tag1",
       "keys": ["dim1", "dim2", "dim3"],
       "filters":[
         {
@@ -152,19 +158,20 @@ match_all=$(curl -s -X POST \
   ]
 }')
 expected='{"data":[{"name":"test","result":[],"meta":{"count":2}}]}'
-if [[ "$match_all" != "$expected" ]]; then
-  echo "Error querying match_all. Got: ${match_all}, expected: ${expected}"
+if [[ "$match_2_count" != "$expected" ]]; then
+  echo "Error querying match_2_count. Got: ${match_2_count}, expected: ${expected}"
   exit 1
 fi
 
 # Test count operation = 1
-match_one=$(curl -s -X POST \
+match_1_count=$(curl -s -X POST \
   http://localhost:8000/query \
   -H 'Content-Type: application/json' \
   -d '{
   "data": [
     {
       "name": "test",
+      "tag": "tag1",
       "keys": ["dim1", "dim2"],
       "filters":[
         {
@@ -186,19 +193,20 @@ match_one=$(curl -s -X POST \
   ]
 }')
 expected='{"data":[{"name":"test","result":[],"meta":{"count":1}}]}'
-if [[ "$match_one" != "$expected" ]]; then
-  echo "Error querying match_one. Got: ${match_one}, expected: ${expected}"
+if [[ "$match_1_count" != "$expected" ]]; then
+  echo "Error querying match_1_count. Got: ${match_1_count}, expected: ${expected}"
   exit 1
 fi
 
 # Test unique count
-match_all=$(curl -s -X POST \
+match_unique_count=$(curl -s -X POST \
   http://localhost:8000/query \
   -H 'Content-Type: application/json' \
   -d '{
   "data": [
     {
       "name": "test",
+      "tag": "tag1",
       "keys": ["dim1", "dim2", "dim3"],
       "filters":[
         {
@@ -216,8 +224,8 @@ match_all=$(curl -s -X POST \
   ]
 }')
 expected='{"data":[{"name":"test","result":[],"meta":{"uniqueCount":1}}]}'
-if [[ "$match_all" != "$expected" ]]; then
-  echo "Error querying match_all. Got: ${match_all}, expected: ${expected}"
+if [[ "$match_unique_count" != "$expected" ]]; then
+  echo "Error querying match_unique_count. Got: ${match_unique_count}, expected: ${expected}"
   exit 1
 fi
 

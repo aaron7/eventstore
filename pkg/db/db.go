@@ -3,6 +3,9 @@ package db
 import (
 	"fmt"
 	"net/url"
+
+	badger "github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/pb"
 )
 
 // KeyValuePair describes a key and a value
@@ -16,7 +19,8 @@ type DB interface {
 	LookupValue(key []byte) (value []byte, exists bool, err error)
 	SetKeyValues([]KeyValuePair) error
 	GetSequence(key []byte, bandwidth uint64) (Sequence, error)
-	RangeKeys(prefix []byte) (keys [][]byte)
+	RangeKeys(prefix []byte, keyItr func([]byte) error) error
+	Stream(prefix []byte, keyToList func(key []byte, itr *badger.Iterator) (list *pb.KVList, err error), send func(list *pb.KVList) error) error
 	Close() error
 }
 
