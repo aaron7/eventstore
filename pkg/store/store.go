@@ -100,37 +100,12 @@ func (s *Store) QueryEvents(query Query) QueryResult {
 		fetchedKeysMap := make(map[string]struct{})
 
 		for i, filter := range data.Filters {
-			events := []DecodedEvent{}
-			keyItr := func(key []byte) error {
-				// Benchmark: 0.33 seconds for 3.3m keys
-				// TODO: Find faster decoding
-				_, _, eventValue, ts, eventID := decodeEventIndexKey(key)
 
-				if i == 0 {
-					// Benchmark: Using map is 0.6s longer. Ids is 0.3s quicker.
-					// TODO: Find fasting encoding than struct?
-					events = append(events, DecodedEvent{ID: eventID, TS: ts, Tag: data.Tag, Data: []DecodedEventData{{filter.Key, eventValue}}})
-				} else {
-					// Intersect by searching the events list from previous combined filters and only
-					// adding the event from this filter if it is also in the previous combined filters.
-					idx := sort.Search(len(finalEvents), func(i int) bool {
-						return eventID <= finalEvents[i].ID
-					})
-					if idx < len(finalEvents) && finalEvents[idx].ID == eventID {
-						finalEvents[idx].Data = append(finalEvents[idx].Data, DecodedEventData{filter.Key, eventValue})
-						events = append(events, finalEvents[idx])
-					}
-				}
-
-				return nil
+			if filter.Type == "eq" {
+				finalEvents, _ = equalFilter(data.Tag, filter.Key, filter.Value, s, finalEvents, i == 0)
+			} else {
+				fmt.Println("Unsupported filter")
 			}
-			err := s.DB.RangeKeys(getPartialEventIndexValueRangeKey(data.Tag, filter.Key, filter.Value), keyItr)
-			if err != nil {
-				fmt.Println("error")
-				break
-			}
-
-			finalEvents = events
 
 			// Record we fetched the key
 			fetchedKeysMap[filter.Key] = struct{}{}
