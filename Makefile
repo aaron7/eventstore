@@ -11,7 +11,7 @@ test:
 	go test -v ./...
 
 integration-tests: build
-	./integration-tests/basic.sh
+	./integration-tests/run.sh
 
 clean:
 	rm -f $(BINARY)
