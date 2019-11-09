@@ -11,18 +11,18 @@ import (
 // (tag, dimension, value, event_id) => nil
 const eventIndexPrefix = "e"
 
-func createEventIndexEntry(tag, dimension, value string, eventID, ts uint64) db.KeyValuePair {
+func createEventIndexEntry(tag, dimension, value string, ts, eventID uint64) db.KeyValuePair {
 	return db.KeyValuePair{
-		Key:   getEventIndexEntryKey(tag, dimension, value, eventID, ts),
+		Key:   getEventIndexEntryKey(tag, dimension, value, ts, eventID),
 		Value: nil,
 	}
 }
 
-func getEventIndexEntryKey(tag, dimension, value string, eventID, ts uint64) []byte {
-	return []byte(fmt.Sprintf("%s:%s:%s:%s:%s:%s", eventIndexPrefix, tag, dimension, value, uint64ToBytes(eventID), uint64ToBytes(ts)))
+func getEventIndexEntryKey(tag, dimension, value string, ts, eventID uint64) []byte {
+	return []byte(fmt.Sprintf("%s:%s:%s:%s:%s:%s", eventIndexPrefix, tag, dimension, value, uint64ToBytes(ts), uint64ToBytes(eventID)))
 }
 
-func decodeEventIndexKey(key []byte) (tag, dimension, value string, eventID, ts uint64) {
+func decodeEventIndexKey(key []byte) (tag, dimension, value string, ts, eventID uint64) {
 	s := string(key)
 	parts := strings.SplitN(s, ":", 6)
 	return parts[1], parts[2], parts[3], bytesToUint64([]byte(parts[4])), bytesToUint64([]byte(parts[5]))

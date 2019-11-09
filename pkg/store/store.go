@@ -48,7 +48,7 @@ func (s *Store) IngestEvents(events []Event) error {
 			return err
 		}
 		for dimension, value := range event.Data {
-			indexEntries = append(indexEntries, createEventIndexEntry(event.Tag, dimension, value, eventID, event.TS))
+			indexEntries = append(indexEntries, createEventIndexEntry(event.Tag, dimension, value, event.TS, eventID))
 		}
 		if err != nil {
 			return err
@@ -104,7 +104,7 @@ func (s *Store) QueryEvents(query Query) QueryResult {
 			keyItr := func(key []byte) error {
 				// Benchmark: 0.33 seconds for 3.3m keys
 				// TODO: Find faster decoding
-				_, _, eventValue, eventID, ts := decodeEventIndexKey(key)
+				_, _, eventValue, ts, eventID := decodeEventIndexKey(key)
 
 				if i == 0 {
 					// Benchmark: Using map is 0.6s longer. Ids is 0.3s quicker.
@@ -143,7 +143,7 @@ func (s *Store) QueryEvents(query Query) QueryResult {
 				keyItr := func(key []byte) error {
 					// Benchmark: 0.33 seconds for 3.3m keys
 					// TODO: Find faster decoding
-					_, _, eventValue, eventID, _ := decodeEventIndexKey(key)
+					_, _, eventValue, _, eventID := decodeEventIndexKey(key)
 
 					// Intersect by searching the events list from previous combined filters and only
 					// adding the event from this filter if it is also in the previous combined filters.
