@@ -103,6 +103,8 @@ func (s *Store) QueryEvents(query Query) QueryResult {
 
 			if filter.Type == "eq" {
 				finalEvents, _ = equalFilter(data.Tag, filter.Key, filter.Value, s, finalEvents, i == 0)
+			} else if filter.Type == "regex" {
+				finalEvents, _ = regexFilter(data.Tag, filter.Key, filter.Value, s, finalEvents, i == 0)
 			} else {
 				fmt.Println("Unsupported filter")
 			}

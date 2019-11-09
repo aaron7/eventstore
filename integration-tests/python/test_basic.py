@@ -160,3 +160,44 @@ class TestBasic:
         )
 
         assert result["data"][0]["meta"] == {"uniqueCount": 1}
+
+
+class TestRegex:
+    def setup_class(self):
+        helpers.wipe_database()
+        events = [
+            helpers.create_event("tag1", ts=1001, data={"a": "foo1",}),
+            helpers.create_event("tag1", ts=1002, data={"a": "foobar"}),
+            helpers.create_event("tag1", ts=1003, data={"a": "foo2"}),
+        ]
+        helpers.send_events(events)
+
+    def test_basic_regex(self):
+        result = helpers.execute_query(
+            {
+                "data": [
+                    {
+                        "name": "test",
+                        "tag": "tag1",
+                        "keys": ["dim1", "dim2"],
+                        "filters": [{"type": "regex", "key": "a", "value": "foo\d"},],
+                        "operations": [],
+                    }
+                ]
+            }
+        )
+
+        assert result["data"][0]["result"] == [
+            {
+                "id": mock.ANY,
+                "ts": 1001,
+                "tag": "tag1",
+                "data": [{"key": "a", "value": "foo1"},],
+            },
+            {
+                "id": mock.ANY,
+                "ts": 1003,
+                "tag": "tag1",
+                "data": [{"key": "a", "value": "foo2"},],
+            },
+        ]
